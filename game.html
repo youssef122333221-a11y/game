@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>مهمة الفضاء - النسخة الملحمية 🚀</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            flex-direction: column;
+            overflow: hidden; /* عشان الاهتزاز ميعملش سكرول بار */
+        }
+        canvas {
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+            border-radius: 10px;
+        }
+        .instructions {
+            margin-top: 20px;
+            text-align: center;
+            color: #00ffff;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas" width="500" height="700"></canvas>
+    <div class="instructions">
+        ⬆️ ⬇️ ⬅️ ➡️ للحركة | مسطرة (Space) للإطلاق | E للضربة القاضية | Esc للإيقاف
+    </div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const originalWidth = canvas.width;
+    const originalHeight = canvas.height;
+
+    // نظام الصوت المتطور (Realistic Sound Design)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function createNoiseBuffer(duration) {
+        const sampleRate = audioCtx.sampleRate;
+        const length = sampleRate * duration;
+        const buffer = audioCtx.createBuffer(1, length, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+    }
+
+    function playSound(type) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        
+        if(type === 'shoot') {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+        else if(type === 'explosion') {
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = createNoiseBuffer(0.4);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.4);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            noise.start(); noise.stop(audioCtx.currentTime + 0.4);
+        }
+        else if(type === 'boss_explosion') {
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = createNoiseBuffer(0.8);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            noise.start(); noise.stop(audioCtx.currentTime + 0.8);
+        }
+        else if(type === 'hit') {
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = createNoiseBuffer(0.15);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass'; filter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            noise.start(); noise.stop(audioCtx.currentTime + 0.15);
+        }
+        else if(type === 'megablast') {
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = createNoiseBuffer(1.5);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(500, audioCtx.currentTime);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(1.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            noise.start(); noise.stop(audioCtx.currentTime + 1.5);
+        }
+        else if(type === 'levelup') {
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+        }
+        else if(type === 'pickup') {
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1600, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        }
+    }
+
+    let player = { x: 230, y: 600, width: 40, height: 50, speed: 6 };
+    let bullets = [];
+    let meteors = [];
+    let particles = [];
+    let pickups = [];
+    let score = 0;
+    let level = 1;
+    let lives = 3;
+    let megaBlastEnergy = 0;
+    let gameOver = false;
+    let isPaused = false;
+    let keys = {};
+    let stars = [];
+    
+    let isBreakTime = false; 
+    let breakTimer = 0; 
+    let currentLevelTarget = 100;
+    let currentLevelStartScore = 0;
+
+    // متغيرات التأثيرات البصرية
+    let screenShake = 0;
+    let flashAlpha = 0;
+
+    const levelColors = [
+        { bg1: "#000428", bg2: "#004e92", star: "#ffffff" },
+        { bg1: "#001a00", bg2: "#004e00", star: "#88ff88" },
+        { bg1: "#1a002e", bg2: "#4e008a", star: "#e0b0ff" },
+        { bg1: "#2e1a00", bg2: "#8a5200", star: "#ffd700" },
+        { bg1: "#2e0000", bg2: "#8a0000", star: "#ff4444" },
+    ];
+
+    for(let i=0; i<150; i++) {
+        stars.push({ x: Math.random()*500, y: Math.random()*700, size: Math.random()*2+1, speed: Math.random()*0.5+0.1 });
+    }
+
+    window.addEventListener("keydown", (e) => {
+        if (e.code === "Escape" && !gameOver && !isBreakTime) { isPaused = !isPaused; return; }
+        keys[e.code] = true;
+        if (e.code === "Space" && !gameOver && !isPaused && !isBreakTime) shoot();
+        if (e.code === "KeyE" && !gameOver && !isPaused && megaBlastEnergy >= 600) activateMegaBlast();
+        if (e.code === "Enter" && gameOver) resetGame();
+    });
+    window.addEventListener("keyup", (e) => { keys[e.code] = false; });
+
+    function shoot() {
+        bullets.push({ x: player.x + player.width / 2 - 3, y: player.y, width: 6, height: 15, speed: 8 });
+        playSound('shoot');
+        flashAlpha = 0.1; // وميض خفيف مع الضرب
+    }
+
+    function activateMegaBlast() {
+        megaBlastEnergy = 0;
+        playSound('megablast');
+        flashAlpha = 1.0; // وميض قوي
+        screenShake = 30; // هزة قوية
+        
+        for (let i = meteors.length - 1; i >= 0; i--) {
+            let m = meteors[i];
+            createExplosion(m.x + m.width/2, m.y + m.height/2, m.isBoss);
+            score += m.points;
+            if (m.width >= 50 && !m.isBoss && !m.isFragment) spawnFragments(m);
+            meteors.splice(i, 1);
+        }
+        particles.push({ x: 250, y: 350, vx: 0, vy: 0, life: 40, color: "#00ffff", size: 500, isMega: true });
+        checkLevelUp();
+    }
+
+    function spawnFragments(m) {
+        for(let k=0; k<2; k++) {
+            meteors.push({ x: m.x + (k===0?-10:20), y: m.y, width: 20, height: 20, speed: m.speed+2, rotation: 0, rotSpeed: (Math.random()-0.5)*0.2, isBoss: false, points: 10, isFragment: true });
+        }
+    }
+
+    function spawnMeteor() {
+        if (isBreakTime) return; 
+        let spawnRate = 0.025 + (level * 0.01); 
+        if(Math.random() < spawnRate) {
+            let sizeType = Math.random();
+            let size, points, speed;
+            if(sizeType < 0.5) { size = 20; points = 10; speed = Math.random()*2+2.5+(level*0.3); }
+            else if(sizeType < 0.85) { size = 35; points = 20; speed = Math.random()*2+1.5+(level*0.3); }
+            else { size = 50; points = 30; speed = Math.random()*2+1+(level*0.3); }
+            meteors.push({ x: Math.random()*(canvas.width-size), y: -size, width: size, height: size, speed: speed, rotation: 0, rotSpeed: (Math.random()-0.5)*0.1, isBoss: false, points: points, isFragment: false });
+        }
+
+        if (level % 5 === 0 && Math.random() < 0.008 && !meteors.some(m => m.isBoss)) {
+            let bossLevel = Math.floor(level / 5); let bossSize = 70 + (bossLevel * 15); let bossHP = 3 + bossLevel * 2; 
+            meteors.push({ x: canvas.width/2-bossSize/2, y: -bossSize, width: bossSize, height: bossSize, speed: 1, rotation: 0, rotSpeed: 0.02, isBoss: true, points: 50*bossLevel, hp: bossHP, maxHp: bossHP, isFragment: false });
+            playSound('hit'); // صوت إنذار
+        }
+        if (level % 5 === 0 && Math.random() < 0.002 && pickups.length === 0) {
+            pickups.push({ x: Math.random()*440+30, y: -30, width: 30, height: 30, speed: 2 });
+        }
+    }
+
+    function drawPlayer() {
+        ctx.save();
+        ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+        let flameSize = isBreakTime ? 5 : 15; 
+        ctx.fillStyle = "#ff4500"; ctx.shadowBlur = 20; ctx.shadowColor = "#ff4500";
+        ctx.beginPath(); ctx.moveTo(-10, player.height/2); ctx.lineTo(10, player.height/2);
+        ctx.lineTo(0, player.height/2 + flameSize + Math.random()*8); ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = lives > 1 ? "#00ffff" : "#ff0000"; ctx.shadowBlur = 20; ctx.shadowColor = ctx.fillStyle;
+        ctx.beginPath(); ctx.moveTo(0, -player.height/2); ctx.lineTo(-player.width/2, player.height/2);
+        ctx.lineTo(0, player.height/2 - 10); ctx.lineTo(player.width/2, player.height/2);
+        ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+
+    function drawMeteor(m) {
+        ctx.save();
+        ctx.translate(m.x + m.width/2, m.y + m.height/2);
+        ctx.rotate(m.rotation);
+        if(m.isBoss) {
+            ctx.fillStyle = Math.random() > 0.5 ? "#ff0000" : "#8a0000";
+            ctx.strokeStyle = "#ffeb3b"; ctx.lineWidth = 4; ctx.shadowBlur = 30; ctx.shadowColor = "#ff0000";
+            ctx.beginPath();
+            for(let i=0; i<8; i++) { let a=(i/8)*Math.PI*2; let r=m.width/2*(i%2===0?1:0.7); i===0?ctx.moveTo(r*Math.cos(a),r*Math.sin(a)):ctx.lineTo(r*Math.cos(a),r*Math.sin(a)); }
+            ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+            ctx.fillStyle = "#000"; ctx.font = `bold ${m.width/3}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("☠️", 0, 0);
+            let bw = m.width; ctx.fillStyle = "#555"; ctx.fillRect(-bw/2, -m.height/2-15, bw, 8);
+            ctx.fillStyle = "#ff0000"; ctx.fillRect(-bw/2, -m.height/2-15, bw*(m.hp/m.maxHp), 8);
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.strokeRect(-bw/2, -m.height/2-15, bw, 8);
+        } else {
+            ctx.fillStyle = m.isFragment ? "#9a9a9a" : (m.width > 40 ? "#7a7a7a" : "#8a8a8a");
+            ctx.strokeStyle = "#555"; ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = "#ff0000";
+            ctx.beginPath();
+            ctx.moveTo(-m.width/3, -m.height/2); ctx.lineTo(m.width/3, -m.height/2); ctx.lineTo(m.width/2, -m.height/4);
+            ctx.lineTo(m.width/2, m.height/4); ctx.lineTo(m.width/3, m.height/2); ctx.lineTo(-m.width/3, m.height/2);
+            ctx.lineTo(-m.width/2, m.height/4); ctx.lineTo(-m.width/2, -m.height/4);
+            ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+            if(!m.isFragment) { ctx.fillStyle="#666"; ctx.beginPath(); ctx.arc(-5,-5,m.width/6,0,Math.PI*2); ctx.fill(); }
+        }
+        ctx.restore();
+    }
+
+    function createExplosion(x, y, isBoss) {
+        let pCount = isBoss ? 60 : 20;
+        for(let i=0; i<pCount; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            let speed = (isBoss ? 14 : 8) * Math.random();
+            particles.push({
+                x, y, 
+                vx: Math.cos(angle) * speed, 
+                vy: Math.sin(angle) * speed, 
+                life: 30 + Math.random()*20, 
+                color: Math.random()>0.5?"#ff4500":"#ffeb3b", 
+                size: Math.random()*(isBoss?6:3)+2, 
+                isMega: false,
+                type: 'fire'
+            });
+        }
+        // شرر أبيض
+        for(let i=0; i<5; i++) {
+            particles.push({ x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 10, color: "#ffffff", size: 1, isMega: false, type: 'spark' });
+        }
+    }
+
+    function updateParticles() {
+        for(let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            if(p.isMega) {
+                ctx.globalAlpha = p.life / 40; ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 - p.life/40), 0, Math.PI*2); ctx.fill();
+                ctx.globalAlpha = 1; p.life--;
+            } else {
+                p.x += p.vx; p.y += p.vy; p.life--;
+                p.vx *= 0.98; p.vy *= 0.98; // احتكاك
+                ctx.globalAlpha = p.life / 50;
+                if(p.type === 'spark') {
+                    ctx.fillStyle = "#fff"; ctx.fillRect(p.x, p.y, p.size, p.size);
+                } else {
+                    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+            if(p.life <= 0) particles.splice(i, 1);
+        }
+    }
+
+    function updateBullets() {
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            let b = bullets[i]; b.y -= b.speed;
+            ctx.fillStyle = "#ffeb3b"; ctx.shadowBlur = 10; ctx.shadowColor = "#ffeb3b";
+            ctx.fillRect(b.x, b.y, b.width, b.height);
+            ctx.fillStyle = "#ff4500"; ctx.fillRect(b.x+1, b.y+b.height, b.width-2, 5);
+            ctx.shadowBlur = 0;
+            if (b.y < 0) bullets.splice(i, 1);
+        }
+    }
+
+    function updatePickups() {
+        for(let i = pickups.length - 1; i >= 0; i--) {
+            let p = pickups[i]; p.y += p.speed;
+            ctx.fillStyle = "#00ffff"; ctx.shadowBlur = 20; ctx.shadowColor = "#00ffff";
+            ctx.font = "30px Arial"; ctx.textAlign = "center";
+            ctx.fillText("🛡️", p.x + p.width/2, p.y + p.height/2 + 8);
+            ctx.shadowBlur = 0;
+            if (p.y > canvas.height) { pickups.splice(i, 1); continue; }
+            if (detectCollision(player, p)) {
+                if(lives < 5) lives++;
+                playSound('pickup'); flashAlpha = 0.2;
+                pickups.splice(i, 1);
+            }
+        }
+    }
+
+    function checkLevelUp() {
+        if (score >= currentLevelTarget) {
+            level++; currentLevelStartScore = currentLevelTarget; currentLevelTarget += (level * 100);
+            isBreakTime = true; breakTimer = 300; playSound('levelup');
+        }
+    }
+
+    function updateMeteors() {
+        for (let i = meteors.length - 1; i >= 0; i--) {
+            let m = meteors[i]; m.y += m.speed; m.rotation += m.rotSpeed;
+            drawMeteor(m);
+
+            if (m.y > canvas.height + 50) { meteors.splice(i, 1); continue; }
+
+            if (!isBreakTime && detectCollision(player, m)) {
+                lives--;
+                playSound('explosion'); 
+                screenShake = 15; flashAlpha = 0.5; // هزة وميض لما تتصاب
+                createExplosion(player.x + player.width/2, player.y + player.height/2, false);
+                meteors.splice(i, 1);
+                if (lives <= 0) { gameOver = true; isPaused = false; isBreakTime = false; }
+                else { isBreakTime = true; breakTimer = 60; }
+                continue;
+            }
+
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                let b = bullets[j];
+                if (b && detectCollision(b, m)) {
+                    bullets.splice(j, 1);
+                    if(m.isBoss) {
+                        m.hp--; createExplosion(b.x + b.width/2, b.y, false); playSound('hit'); screenShake = 5;
+                        if(m.hp <= 0) { createExplosion(m.x+m.width/2, m.y+m.height/2, true); playSound('boss_explosion'); screenShake = 20; flashAlpha = 0.4; score += m.points; megaBlastEnergy += m.points; meteors.splice(i, 1); }
+                    } else {
+                        createExplosion(m.x+m.width/2, m.y+m.height/2, false); playSound('explosion'); screenShake = 3; flashAlpha = 0.1; score += m.points; megaBlastEnergy += m.points;
+                        if(m.width >= 50 && !m.isFragment) spawnFragments(m);
+                        meteors.splice(i, 1);
+                    }
+                    if(megaBlastEnergy > 600) megaBlastEnergy = 600;
+                    checkLevelUp(); break;
+                }
+            }
+        }
+    }
+
+    function detectCollision(rect1, rect2) {
+        return rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y;
+    }
+
+    function resetGame() {
+        player = { x: 230, y: 600, width: 40, height: 50, speed: 6 };
+        bullets = []; meteors = []; particles = []; pickups = [];
+        score = 0; level = 1; lives = 3; megaBlastEnergy = 0;
+        gameOver = false; isPaused = false; isBreakTime = false; breakTimer = 0;
+        currentLevelTarget = 100; currentLevelStartScore = 0; screenShake = 0; flashAlpha = 0;
+    }
+
+    function drawStarsAndBg() {
+        let colorIdx = (level - 1) % 5;
+        let lc = levelColors[colorIdx];
+        let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, lc.bg1); gradient.addColorStop(1, lc.bg2);
+        ctx.fillStyle = gradient; ctx.fillRect(0, 0, originalWidth, originalHeight);
+
+        ctx.fillStyle = lc.star;
+        for(let i=0; i<stars.length; i++) {
+            let s = stars[i];
+            if (!isPaused && !gameOver) { s.y += s.speed; if(s.y > canvas.height) { s.y = 0; s.x = Math.random()*canvas.width; } }
+            ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    function drawUI() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(originalWidth/2 - 80, 10, 160, 40);
+        ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 2; ctx.strokeRect(originalWidth/2 - 80, 10, 160, 40);
+        ctx.fillStyle = "#00ffff"; ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
+        ctx.fillText("SCORE: " + score, originalWidth/2, 40);
+
+        let pw = 150, ph = 10, px = originalWidth/2 - 75, py = 55;
+        ctx.fillStyle = "#333"; ctx.fillRect(px, py, pw, ph);
+        let progress = (score - currentLevelStartScore) / (currentLevelTarget - currentLevelStartScore);
+        if(progress > 1) progress = 1;
+        ctx.fillStyle = "#00ffff"; ctx.fillRect(px, py, pw * progress, ph);
+        ctx.strokeStyle = "#00ffff"; ctx.strokeRect(px, py, pw, ph);
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(10, 10, 140, 40);
+        ctx.strokeStyle = level % 5 === 0 ? "#ff0000" : "#ffeb3b"; ctx.lineWidth = 2; ctx.strokeRect(10, 10, 140, 40);
+        ctx.fillStyle = level % 5 === 0 ? "#ff0000" : "#ffeb3b"; ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
+        ctx.fillText("LEVEL: " + level, 80, 40);
+
+        ctx.textAlign = "left"; ctx.font = "25px Arial";
+        for(let i=0; i<lives; i++) { ctx.fillText("❤️", 10 + i*30, 85); }
+
+        ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(10, 95, 150, 20);
+        ctx.strokeStyle = megaBlastEnergy >= 600 ? "#ff4500" : "#555"; ctx.lineWidth = 2; ctx.strokeRect(10, 95, 150, 20);
+        ctx.fillStyle = megaBlastEnergy >= 600 ? "#ff4500" : "#ff8c00"; ctx.fillRect(12, 97, 146 * (megaBlastEnergy/600), 16);
+        ctx.fillStyle = "white"; ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
+        ctx.fillText(megaBlastEnergy >= 600 ? "PRESS E TO BLAST!" : "ENERGY: " + megaBlastEnergy + "/600", 85, 110);
+    }
+
+    function gameLoop() {
+        ctx.save();
+        
+        // نظام اهتزاز الشاشة
+        if (screenShake > 0) {
+            let shakeX = (Math.random() - 0.5) * screenShake;
+            let shakeY = (Math.random() - 0.5) * screenShake;
+            ctx.translate(shakeX, shakeY);
+            screenShake *= 0.9; // الاهتزاز بيقل تدريجياً
+            if (screenShake < 0.5) screenShake = 0;
+        }
+
+        ctx.clearRect(-50, -50, originalWidth + 100, originalHeight + 100);
+        drawStarsAndBg();
+
+        if (!gameOver && !isPaused) {
+            if (isBreakTime) {
+                breakTimer--;
+                if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
+                if (keys["ArrowDown"] && player.y < canvas.height - player.height) player.y += player.speed;
+                if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+                if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+
+                drawPlayer(); updateBullets(); updateMeteors(); updatePickups(); updateParticles(); drawUI();
+
+                ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, canvas.height/2 - 90, canvas.width, 180);
+                ctx.textAlign = "center";
+                if(level % 5 === 0) { ctx.fillStyle = "#ff0000"; ctx.font = "bold 35px Arial"; ctx.fillText("⚠️ مرحلة الخطر ⚠️", canvas.width / 2, canvas.height / 2 - 30); }
+                else { ctx.fillStyle = "#00ffff"; ctx.font = "bold 40px Arial"; ctx.fillText("المرحلة " + level, canvas.width / 2, canvas.height / 2 - 30); }
+                ctx.fillStyle = "white"; ctx.font = "bold 70px Arial";
+                let secondsLeft = Math.ceil(breakTimer / 60);
+                ctx.fillText(secondsLeft, canvas.width / 2, canvas.height / 2 + 50);
+
+                if (breakTimer <= 0) isBreakTime = false;
+            } else {
+                if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
+                if (keys["ArrowDown"] && player.y < canvas.height - player.height) player.y += player.speed;
+                if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+                if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+                spawnMeteor(); drawPlayer(); updateBullets(); updateMeteors(); updatePickups(); updateParticles(); drawUI();
+            }
+        } else if (isPaused) {
+            drawPlayer(); for (let b of bullets) { ctx.fillStyle="#ffeb3b"; ctx.fillRect(b.x,b.y,b.width,b.height); }
+            for (let m of meteors) { drawMeteor(m); } drawUI();
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white"; ctx.font = "bold 70px Arial"; ctx.textAlign = "center";
+            ctx.fillText("⏸️", canvas.width / 2, canvas.height / 2 - 20);
+            ctx.font = "bold 30px Arial"; ctx.fillText("إيقاف مؤقت", canvas.width / 2, canvas.height / 2 + 30);
+        } else {
+            updateParticles();
+            ctx.fillStyle = "white"; ctx.font = "bold 50px Arial"; ctx.textAlign = "center";
+            ctx.shadowBlur = 20; ctx.shadowColor = "red"; ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 40); ctx.shadowBlur = 0;
+            ctx.font = "bold 30px Arial"; ctx.fillStyle = "#00ffff"; ctx.fillText("نتيجتك: " + score, canvas.width / 2, canvas.height / 2 + 10);
+            ctx.fillStyle = "#ffeb3b"; ctx.fillText("وصلت للمرحلة: " + level, canvas.width / 2, canvas.height / 2 + 50);
+            ctx.font = "20px Arial"; ctx.fillStyle = "white"; ctx.fillText("اضغط Enter للعب مرة أخرى", canvas.width / 2, canvas.height / 2 + 100);
+        }
+
+        // نظام وميض الشاشة (Flash)
+        if (flashAlpha > 0) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+            ctx.fillRect(-50, -50, originalWidth + 100, originalHeight + 100);
+            flashAlpha -= 0.05; // بيقل تدريجياً
+        }
+
+        ctx.restore();
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+</script>
+
+</body>
+</html>
